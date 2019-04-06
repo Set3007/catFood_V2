@@ -8,6 +8,7 @@ import RPi.GPIO as GPIO
 import threading
 import pymysql
 
+
 # Pin in use
 pinlight = 5
 pinlight2 = 21
@@ -24,7 +25,6 @@ en_sl = 26 # Enable and Sleep (turn on driver)
 
 dirpl = 23
 steppl = 22
-sprpl = 10
 en_slpl = 24
 
 mode = (6, 16, 20)   # Microstep Resolution GPIO Pins
@@ -39,7 +39,7 @@ cw = 0     # Clockwise Rotation
 ccw = 1    # Counterclockwise Rotation
 
 stepccw = 25
-stepcw = 100
+stepcw = 150
 
 cwpl = 1
 ccwpl = 0
@@ -68,7 +68,7 @@ camera.resolution = (640, 480)
 #camera.framerate = 16
 camera.vflip = True
 camera.hflip = True
-rawCapture = PiRGBArray(camera, size=(640, 480))
+rawCapture = PiRGBArray(camera)
 
 # allow the camera to warmup
 time.sleep(0.1)
@@ -76,19 +76,11 @@ time.sleep(0.1)
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 
-ap.add_argument("-i", "--info",
-    default="/home/pi/camera/photos/info.info",
-    help="file info pixel count")
-
 ap.add_argument("-c", "--cascade",
-    default="/home/pi/camera/xmlfile/cascade3.xml",
-    help="path to cat detector haar cascade")
+    default="/home/pi/robot/xmlfile/cascade3.xml")
 args = vars(ap.parse_args())
 
 detector = cv2.CascadeClassifier(args["cascade"])
-
-fileinfo = open(args["info"], "w")
-
 
 
 def setup():
@@ -97,7 +89,7 @@ def setup():
 	GPIO.setup(pinlight2, GPIO.OUT, initial = GPIO.LOW)
 	GPIO.setup(pinlightbol, GPIO.OUT, initial = GPIO.LOW)
 	GPIO.setup(capteurtank,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-	GPIO.setup(ledtank,GPIO.OUT)	
+	GPIO.setup(ledtank,GPIO.OUT)
 	GPIO.setup(capteur,GPIO.IN, pull_up_down=GPIO.PUD_UP)
 	GPIO.setup(led,GPIO.OUT)
 	GPIO.setup(bpmanuel,GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -110,6 +102,7 @@ def setup():
 	GPIO.setup(mode, GPIO.OUT)
 	GPIO.setup(en_slpl, GPIO.OUT)
 	GPIO.output(en_slpl, GPIO.LOW)
+	GPIO.output(en_sl, GPIO.LOW)
 
 
 def rotation_screw(dir, stp):
@@ -122,11 +115,10 @@ def rotation_screw(dir, stp):
 
 #  define rotation sequences of screw
 def serving():
+	print("serving")
 	GPIO.output(en_sl, GPIO.HIGH)
-	GPIO.output(mode, resolution['Full'])
 	rotation_screw(ccw,stepccw)
 	time.sleep(0.5)
-	GPIO.output(mode, resolution['Full'])
 	rotation_screw(cw,stepcw)
 	GPIO.output(en_sl, GPIO.LOW)
 
@@ -160,7 +152,7 @@ def closing():
 	GPIO.output(en_slpl, GPIO.HIGH)
 	GPIO.output(dirpl, cwpl)
 	while GPIO.input(bpplateau) == 1 and step_count < 1000:
-		GPIO.output(mode, resolution['1/16'])
+		GPIO.output(mode, resolution['1/8'])
 		GPIO.output(steppl, GPIO.HIGH)
 		time.sleep(delay)
 		GPIO.output(steppl, GPIO.LOW)
@@ -188,25 +180,28 @@ def detect():
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        rects = detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=20, minSize=(60, 95))
+        rects = detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=15, minSize=(60, 95))
+
         # if detect
-        if rects < "[":
+        print("startdetect")
+        print(rects)
+        if len(rects):
             loop = loop + 1
-            print "detected"
+            print("detected")
             rawCapture.truncate(0)
         # otherwise increment loop value
         else :
             loop2 = loop2 + 1
             loop = 0
-            print "not detected"
+            print("not detected")
             rawCapture.truncate(0)
         # if detect complet: take the framing of detection (rects[0]) , convert to black and white and count the number of white pixel
         if loop == 1:
             x, y, w, h = rects[0]
             img = image[y:(y+h),x:(x+w)]
             num += 1
-            imgpath = ("/home/pi/camera/photos/imageok%s.png"%num)
-            imgnb = ("/home/pi/camera/photos/nb%s.png"%num)
+            imgpath = ("/home/pi/robot/photos/imageok%s.png"%num)
+            imgnb = ("/home/pi/robot/photos/nb%s.png"%num)
             # Save image and write black pixel info
             cv2.imwrite(imgpath ,image)
             cv2.imwrite(imgnb ,img)
@@ -228,21 +223,21 @@ def monaeating():
             # mona finished to eat
 
 def countcroquettes():
-    x = 185
+    x = 205
     y = 310
     h = 165
-    w = 210
+    w = 200
     light()
     time.sleep(1)
     for frame in  camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-		image = frame.array
-		img = image[y:(y+h),x:(x+w)]
-		nb = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-		ret,thresh = cv2.threshold(nb,160,255, cv2.THRESH_BINARY)
-		whitep = cv2.countNonZero(thresh)
-		rawCapture.truncate(0)
-		lightoff()
-		break
+        image = frame.array
+        img = image[y:(y+h),x:(x+w)]
+        nb = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        ret,thresh = cv2.threshold(nb,160,255, cv2.THRESH_BINARY)
+        whitep = cv2.countNonZero(thresh)
+        rawCapture.truncate(0)
+        lightoff()
+        break
     return whitep
 
 def write_db(request,imgnb,serv_state,nbcroquettes,access):
@@ -274,8 +269,7 @@ def tankmanagement():
     if GPIO.input(capteurtank) == 1:
 	    write_db('tankmanagement','','','','')
     GPIO.output(ledtank, GPIO.LOW)
-    
-		
+
 def light():
     GPIO.output(pinlight,GPIO.HIGH)
     GPIO.output(pinlight2,GPIO.HIGH)
@@ -301,15 +295,13 @@ if __name__ == '__main__':
         print('Ready!')
         while True:
             if GPIO.input(bpmanuel) == 0:
-                #opening()
-				serving()
-                #imgnb = "test"
-                #write_db('insert',imgnb,'1','','0')
-                #nbcroquettes = countcroquettes()
-                #closing()
-                #write_db('','','',nbcroquettes,'0')
-				print GPIO.input(capteurtank)
-				time.sleep(1)
+                opening()
+                imgnb = "test"
+                write_db('insert',imgnb,'1','','0')
+                nbcroquettes = countcroquettes()
+                closing()
+                time.sleep(1)
+                write_db('','','',nbcroquettes,'0')
 
 
 
@@ -322,22 +314,20 @@ if __name__ == '__main__':
                     t_closing.pause()
                     opening()
                     serving()
-                    write_db('openning',imgnb,'1','','1')
+                    write_db('insert',imgnb,'1','','1')
                     monaeating()
                     nbcroquettes = countcroquettes()
                     closing()
                     write_db('','','',nbcroquettes,'')
-                    tankmanagement()
                 elif detect() and nbcroquettes < 30000:
                     lightoff()
                     t_closing.pause()
                     opening()
-                    write_db('openning',imgnb,'0','','1')
                     monaeating()
+                    write_db('insert',imgnb,'0','','1')
                     nbcroquettes = countcroquettes()
                     closing()
                     write_db('','','',nbcroquettes,'')
-                    tankmanagement()
                 else:
                     t_closing.pause()
                     lightoff()
