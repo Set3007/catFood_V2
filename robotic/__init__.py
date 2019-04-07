@@ -1,4 +1,6 @@
 import threading
+import RPi.GPIO as GPIO
+import time
 
 # Pin in use
 bpplateau = 17
