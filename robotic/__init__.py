@@ -112,7 +112,3 @@ def opening():
         time.sleep(delay)
         step_count += 1
     GPIO.output(en_slpl, GPIO.LOW)
-
-
-def helloworld():
-    print("hello")

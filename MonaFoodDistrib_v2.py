@@ -5,7 +5,6 @@ from picamera.array import PiRGBArray
 import argparse
 import time
 import RPi.GPIO as GPIO
-import threading
 import pymysql
 import robotic
 
@@ -58,14 +57,6 @@ def setup():
 	GPIO.setup(capteur,GPIO.IN, pull_up_down=GPIO.PUD_UP)
 	GPIO.setup(led,GPIO.OUT)
 	GPIO.setup(bpmanuel,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-
-
-
-
-
-
-
 
 
 def detect():
@@ -181,20 +172,21 @@ def ir():
 if __name__ == '__main__':
     try:
         setup()
+        robotic.setup()
         ir()
 		#thread
-        t_closing = closer()
+        t_closing = robotic.closer()
         t_closing.start()
         t_closing.pause()
 
         print('Ready!')
         while True:
             if GPIO.input(bpmanuel) == 0:
-                opening()
+                robotic.opening()
                 imgnb = "test"
                 write_db('insert',imgnb,'1','','0')
                 nbcroquettes = countcroquettes()
-                closing()
+                robotic.closing()
                 time.sleep(1)
                 write_db('','','',nbcroquettes,'0')
 
@@ -207,21 +199,21 @@ if __name__ == '__main__':
                 if detect() and nbcroquettes > 30000:
                     lightoff()
                     t_closing.pause()
-                    opening()
+                    robotic.opening()
                     serving()
                     write_db('insert',imgnb,'1','','1')
                     monaeating()
                     nbcroquettes = countcroquettes()
-                    closing()
+                    robotic.closing()
                     write_db('','','',nbcroquettes,'')
                 elif detect() and nbcroquettes < 30000:
                     lightoff()
                     t_closing.pause()
-                    opening()
+                    robotic.opening()
                     monaeating()
                     write_db('insert',imgnb,'0','','1')
                     nbcroquettes = countcroquettes()
-                    closing()
+                    robotic.closing()
                     write_db('','','',nbcroquettes,'')
                 else:
                     t_closing.pause()
