@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-import RPi.GPIO as GPIO
+import threading
 
 # Pin in use
 bpplateau = 17
