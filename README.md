@@ -8,3 +8,5 @@ What are the news from [first version](https://github.com/Set3007/Catfood)
 - Added mysql query for play with Grafana.
 
 
+
+![front](https://github.com/Set3007/catFood_V2/blob/master/photos/front_choupettor.JPG)
