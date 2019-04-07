@@ -1,4 +1,4 @@
-# Cat Food V2
+# Cat Food V2 (Le Choupettor)
 
 What are the news from [first version](https://github.com/Set3007/Catfood)
 - Changed the 5v motors stepper by Nema 17 20v to have more strength and speed.
