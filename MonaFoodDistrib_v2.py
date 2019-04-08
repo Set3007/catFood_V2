@@ -200,7 +200,7 @@ if __name__ == '__main__':
                     lightoff()
                     t_closing.pause()
                     robotic.opening()
-                    serving()
+                    robotic.serving()
                     write_db('insert',imgnb,'1','','1')
                     monaeating()
                     nbcroquettes = countcroquettes()
