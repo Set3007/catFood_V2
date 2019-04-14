@@ -183,12 +183,8 @@ if __name__ == '__main__':
         while True:
             if GPIO.input(bpmanuel) == 0:
                 robotic.opening()
-                imgnb = "test"
-                write_db('insert',imgnb,'1','','0')
-                nbcroquettes = countcroquettes()
+                robotic.serving()
                 robotic.closing()
-                time.sleep(1)
-                write_db('','','',nbcroquettes,'0')
 
 
 
