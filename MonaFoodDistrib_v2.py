@@ -23,7 +23,6 @@ bpmanuel = 12
 nbcroquettes = 0
 
 # define global number for increment photos taken
-num = 0
 imgnb = ''
 
 # initialize the camera and grab a reference to the raw camera capture
@@ -60,7 +59,7 @@ def setup():
 
 
 def detect():
-    global num
+    num = 0
     loop = 0
     loop2 = 0
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -86,8 +85,8 @@ def detect():
             x, y, w, h = rects[0]
             img = image[y:(y+h),x:(x+w)]
             num += 1
-            imgpath = ("/home/pi/robot/photos/imageok%s.png"%num)
-            imgnb = ("/home/pi/robot/photos/nb%s.png"%num)
+            imgpath = ("/home/pi/robot/photos/_imageok/%s.png"%num)
+            imgnb = ("/home/pi/robot/photos/_nb/%s.png"%num)
             # Save image and write black pixel info
             cv2.imwrite(imgpath ,image)
             cv2.imwrite(imgnb ,img)
@@ -109,10 +108,10 @@ def monaeating():
             # mona finished to eat
 
 def countcroquettes():
-    x = 205
-    y = 310
-    h = 165
-    w = 200
+    x = 220
+    y = 315
+    h = 160
+    w = 190
     light()
     time.sleep(1)
     for frame in  camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -192,7 +191,7 @@ if __name__ == '__main__':
             if GPIO.input(capteur) == 0:
                 t_closing.running()
                 light()
-                if detect() and nbcroquettes > 30000:
+                if detect() and nbcroquettes > 28000:
                     lightoff()
                     t_closing.pause()
                     robotic.opening()
@@ -202,7 +201,7 @@ if __name__ == '__main__':
                     nbcroquettes = countcroquettes()
                     robotic.closing()
                     write_db('','','',nbcroquettes,'')
-                elif detect() and nbcroquettes < 30000:
+                elif detect() and nbcroquettes < 28000:
                     lightoff()
                     t_closing.pause()
                     robotic.opening()

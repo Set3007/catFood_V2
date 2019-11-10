@@ -23,8 +23,9 @@ resolution = {'Full': (0, 0, 0),
 cw = 0     # Clockwise Rotation
 ccw = 1    # Counterclockwise Rotation
 
-stepccw = 25
-stepcw = 150
+stepccw = 20
+stepcw_1  = 20
+stepcw_2 = 35
 
 cwpl = 1
 ccwpl = 0
@@ -58,12 +59,24 @@ def rotation_screw(dir, stp):
 
 #  define rotation sequences of screw
 def serving():
-	print("serving")
-	GPIO.output(en_sl, GPIO.HIGH)
-	rotation_screw(ccw,stepccw)
-	time.sleep(0.5)
-	rotation_screw(cw,stepcw)
-	GPIO.output(en_sl, GPIO.LOW)
+        print("serving")
+        GPIO.output(en_sl, GPIO.HIGH)
+        rotation_screw(ccw,stepccw)
+        time.sleep(0.2)
+        rotation_screw(cw,stepcw_1)        
+        time.sleep(0.2)
+        rotation_screw(ccw,stepccw)
+        time.sleep(0.2)
+        rotation_screw(cw,stepcw_2)
+        time.sleep(0.2)
+        rotation_screw(ccw,stepccw)
+        time.sleep(0.2)
+        rotation_screw(cw,stepcw_2)
+        time.sleep(0.2)
+        rotation_screw(ccw,stepccw)
+        time.sleep(0.2)
+        rotation_screw(cw,stepcw_2)
+        GPIO.output(en_sl, GPIO.LOW)
 
 class closer(threading.Thread):
 
