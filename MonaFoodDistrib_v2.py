@@ -6,24 +6,14 @@ import argparse
 import time
 import RPi.GPIO as GPIO
 import pymysql
+import configparser
 import robotic
+import os
 
+config = configparser.ConfigParser(os.environ)
+config.read('config.ini')
 
-# Pin in use
-pinlight = 5
-pinlight2 = 21
-pinlightbol = 11
-led = 4
-ledtank = 21
-capteur = 18
-capteurtank = 2
-bpmanuel = 12
-
-
-nbcroquettes = 0
-
-# define global number for increment photos taken
-imgnb = ''
+value = config['VALUE']
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -47,21 +37,23 @@ detector = cv2.CascadeClassifier(args["cascade"])
 
 
 def setup():
-	GPIO.setmode(GPIO.BCM)
-	GPIO.setup(pinlight, GPIO.OUT, initial = GPIO.LOW)
-	GPIO.setup(pinlight2, GPIO.OUT, initial = GPIO.LOW)
-	GPIO.setup(pinlightbol, GPIO.OUT, initial = GPIO.LOW)
-	GPIO.setup(capteurtank,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-	GPIO.setup(ledtank,GPIO.OUT)
-	GPIO.setup(capteur,GPIO.IN, pull_up_down=GPIO.PUD_UP)
-	GPIO.setup(led,GPIO.OUT)
-	GPIO.setup(bpmanuel,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        pin = config['PIN']
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(pin.get('pinlight'), GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(pin.get('pinlight2'), GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(pin.get('pinlightbol'), GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(pin.get('capteurtank'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(pin.get('ledtank'),GPIO.OUT)
+        GPIO.setup(pin.get('capteur'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(pin.get('led'),GPIO.OUT)
+        GPIO.setup(pin.get('bpmanuel'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(pin.get('bpplateau'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
 def detect():
-    num = 0
+    path = config['PATH']
+    num = len([n for n in os.listdir(imgpath) if os.path.isfile(os.path.join(imgpath, n))])
     loop = 0
-    loop2 = 0
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -76,7 +68,6 @@ def detect():
             rawCapture.truncate(0)
         # otherwise increment loop value
         else :
-            loop2 = loop2 + 1
             loop = 0
             print("not detected")
             rawCapture.truncate(0)
@@ -85,15 +76,15 @@ def detect():
             x, y, w, h = rects[0]
             img = image[y:(y+h),x:(x+w)]
             num += 1
-            imgpath = ("/home/pi/robot/photos/_imageok/%s.png"%num)
-            imgnb = ("/home/pi/robot/photos/_nb/%s.png"%num)
+            imgpath = (path.get('imgpath')+"_imageok/%s.png"%num)
+            imgnb = (path.get('imgnb')+"_nb/%s.png"%num)
             # Save image and write black pixel info
             cv2.imwrite(imgpath ,image)
             cv2.imwrite(imgnb ,img)
             rawCapture.truncate(0)
             return True
             break
-        if loop2 == 5:
+        if GPIO.input(capteur) == 1:
             return False
             break
 
@@ -101,17 +92,20 @@ def monaeating():
     e = 0
     while e!=1:
         if GPIO.input(capteur) == 0:
-            time.sleep(5)
+            time.sleep(2)
             # mona mange is eating
+            if GPIO.input(bpplateau) == 0:
+                robotic.opening()
+                robotic.serving()
         elif GPIO.input(capteur) == 1:
             e = 1
             # mona finished to eat
 
 def countcroquettes():
-    x = 220
-    y = 315
-    h = 160
-    w = 190
+    x = value.get('bol_pos_x')
+    y = value.get('bol_pos_y')
+    h = value.get('bol_pos_h')
+    w = value.get('bol_pos_w')
     light()
     time.sleep(1)
     for frame in  camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -126,11 +120,12 @@ def countcroquettes():
     return whitep
 
 def write_db(request,imgnb,serv_state,nbcroquettes,access):
-    connection = pymysql.connect(host='localhost',
-                                user='monastat',
-                                password='passmona',
-                                db='routine_mona',
-                                charset='utf8mb4',
+    db = config['DB']
+    connection = pymysql.connect(host=db.get('host'),
+                                user=db.get('user'),
+                                password=db.get('password'),
+                                db=db.get('db'),
+                                charset=db.get('charset'),
                                 cursorclass=pymysql.cursors.DictCursor)
     try:
         with connection.cursor() as cursor:
@@ -173,7 +168,7 @@ if __name__ == '__main__':
         setup()
         robotic.setup()
         ir()
-		#thread
+        #thread
         t_closing = robotic.closer()
         t_closing.start()
         t_closing.pause()
@@ -185,13 +180,11 @@ if __name__ == '__main__':
                 robotic.serving()
                 robotic.closing()
 
-
-
             time.sleep(0.01)
             if GPIO.input(capteur) == 0:
                 t_closing.running()
                 light()
-                if detect() and nbcroquettes > 28000:
+                if detect() and nbcroquettes > value.get('nbcroquettes'):
                     lightoff()
                     t_closing.pause()
                     robotic.opening()
@@ -201,7 +194,7 @@ if __name__ == '__main__':
                     nbcroquettes = countcroquettes()
                     robotic.closing()
                     write_db('','','',nbcroquettes,'')
-                elif detect() and nbcroquettes < 28000:
+                elif detect() and nbcroquettes < value.get('nbcroquettes'):
                     lightoff()
                     t_closing.pause()
                     robotic.opening()
@@ -214,7 +207,6 @@ if __name__ == '__main__':
                     t_closing.pause()
                     lightoff()
                     #write_db('insert','','0',nbcroquettes,'0')
-
 
             time.sleep(0.01)
 
