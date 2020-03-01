@@ -8,12 +8,24 @@ import RPi.GPIO as GPIO
 import pymysql
 import configparser
 import robotic
-import os
+import os, os.path
 
 config = configparser.ConfigParser(os.environ)
 config.read('config.ini')
 
 value = config['VALUE']
+pin = config['PIN']
+
+# Pin in use
+pinlight = int(pin.get('pinlight'))
+pinlight2 = int(pin.get('pinlight2'))
+pinlightbol = int(pin.get('pinlightbol'))
+led = int(pin.get('led'))
+ledtank = int(pin.get('ledtank'))
+capteur = int(pin.get('capteur'))
+capteurtank = int(pin.get('capteurtank'))
+bpmanuel = int(pin.get('bpmanuel'))
+bpplateau = int(pin.get('bpplateau'))
 
 # initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
@@ -37,17 +49,16 @@ detector = cv2.CascadeClassifier(args["cascade"])
 
 
 def setup():
-        pin = config['PIN']
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(pin.get('pinlight'), GPIO.OUT, initial = GPIO.LOW)
-        GPIO.setup(pin.get('pinlight2'), GPIO.OUT, initial = GPIO.LOW)
-        GPIO.setup(pin.get('pinlightbol'), GPIO.OUT, initial = GPIO.LOW)
-        GPIO.setup(pin.get('capteurtank'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(pin.get('ledtank'),GPIO.OUT)
-        GPIO.setup(pin.get('capteur'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(pin.get('led'),GPIO.OUT)
-        GPIO.setup(pin.get('bpmanuel'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(pin.get('bpplateau'),GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(pinlight, GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(pinlight2, GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(pinlightbol, GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(capteurtank,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(ledtank,GPIO.OUT)
+        GPIO.setup(capteur,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(led,GPIO.OUT)
+        GPIO.setup(bpmanuel,GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(bpplateau,GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
 def detect():
