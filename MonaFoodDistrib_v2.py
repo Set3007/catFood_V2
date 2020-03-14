@@ -16,6 +16,9 @@ config.read('config.ini')
 value = config['VALUE']
 pin = config['PIN']
 
+nbcroquettes = 0
+
+
 # Pin in use
 pinlight = int(pin.get('pinlight'))
 pinlight2 = int(pin.get('pinlight2'))
@@ -62,8 +65,7 @@ def setup():
 
 
 def detect():
-    path = config['PATH']
-    num = len([n for n in os.listdir(imgpath) if os.path.isfile(os.path.join(imgpath, n))])
+    path = config['PATH']   
     loop = 0
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
@@ -82,41 +84,38 @@ def detect():
             loop = 0
             print("not detected")
             rawCapture.truncate(0)
-        # if detect complet: take the framing of detection (rects[0]) , convert to black and white and count the number of white pixel
+        # if detect complet: take the framing of detection (rects[0])
         if loop == 1:
             x, y, w, h = rects[0]
             img = image[y:(y+h),x:(x+w)]
+            num = len([n for n in os.listdir(path.get('imgpath')) if os.path.isfile(os.path.join(path.get('imgpath'), n))])
             num += 1
-            imgpath = (path.get('imgpath')+"_imageok/%s.png"%num)
-            imgnb = (path.get('imgnb')+"_nb/%s.png"%num)
+            imgpath = (path.get('imgpath')+"imageok%s.png"%num)
+            imgnb = (path.get('imgnb')+"nb%s.png"%num)
             # Save image and write black pixel info
             cv2.imwrite(imgpath ,image)
             cv2.imwrite(imgnb ,img)
             rawCapture.truncate(0)
             return True
-            break
         if GPIO.input(capteur) == 1:
             return False
-            break
 
 def monaeating():
-    e = 0
-    while e!=1:
-        if GPIO.input(capteur) == 0:
-            time.sleep(2)
-            # mona mange is eating
-            if GPIO.input(bpplateau) == 0:
-                robotic.opening()
-                robotic.serving()
+    while GPIO.input(capteur) == 0:
+        time.sleep(2)
+        # mona is eating
+        if GPIO.input(bpplateau) == 0:
+            robotic.opening()
+            robotic.serving()
+        # mona is not eating anymore
         elif GPIO.input(capteur) == 1:
-            e = 1
-            # mona finished to eat
+            return
 
 def countcroquettes():
-    x = value.get('bol_pos_x')
-    y = value.get('bol_pos_y')
-    h = value.get('bol_pos_h')
-    w = value.get('bol_pos_w')
+    x = int(value.get('bol_pos_x'))
+    y = int(value.get('bol_pos_y'))
+    h = int(value.get('bol_pos_h'))
+    w = int(value.get('bol_pos_w'))
     light()
     time.sleep(1)
     for frame in  camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -195,22 +194,22 @@ if __name__ == '__main__':
             if GPIO.input(capteur) == 0:
                 t_closing.running()
                 light()
-                if detect() and nbcroquettes > value.get('nbcroquettes'):
+                if detect() and nbcroquettes > int(value.get('numcroquettes')):
                     lightoff()
                     t_closing.pause()
                     robotic.opening()
                     robotic.serving()
-                    write_db('openning',imgnb,'1','','1')
+                    write_db('openning','temppath','1','','1')
                     monaeating()
                     nbcroquettes = countcroquettes()
                     robotic.closing()
                     write_db('','','',nbcroquettes,'')
-                elif detect() and nbcroquettes < value.get('nbcroquettes'):
+                elif detect() and nbcroquettes < int(value.get('numcroquettes')):
                     lightoff()
                     t_closing.pause()
                     robotic.opening()
                     monaeating()
-                    write_db('openning',imgnb,'0','','1')
+                    write_db('openning','temppath','0','','1')
                     nbcroquettes = countcroquettes()
                     robotic.closing()
                     write_db('','','',nbcroquettes,'')
