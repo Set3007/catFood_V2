@@ -10,14 +10,18 @@ import configparser
 import robotic
 import os, os.path
 
+# Init
 config = configparser.ConfigParser(os.environ)
 config.read('config.ini')
 
 value = config['VALUE']
 pin = config['PIN']
+path = config['PATH']
 
 nbcroquettes = 0
 
+num = len([n for n in os.listdir(path.get('imgpath')) if os.path.isfile(os.path.join(path.get('imgpath'), n))])
+num += 1
 
 # Pin in use
 pinlight = int(pin.get('pinlight'))
@@ -64,16 +68,13 @@ def setup():
         GPIO.setup(bpplateau,GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
-def detect():
-    path = config['PATH']   
+def detect():   
     loop = 0
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        rects = detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=15, minSize=(60, 95))
-
+        rects = detector.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=14, minSize=(60, 95))
         # if detect
-        print("startdetect")
         print(rects)
         if len(rects):
             loop = loop + 1
@@ -88,8 +89,6 @@ def detect():
         if loop == 1:
             x, y, w, h = rects[0]
             img = image[y:(y+h),x:(x+w)]
-            num = len([n for n in os.listdir(path.get('imgpath')) if os.path.isfile(os.path.join(path.get('imgpath'), n))])
-            num += 1
             imgpath = (path.get('imgpath')+"imageok%s.png"%num)
             imgnb = (path.get('imgnb')+"nb%s.png"%num)
             # Save image and write black pixel info
@@ -201,6 +200,7 @@ if __name__ == '__main__':
                     robotic.serving()
                     write_db('openning','temppath','1','','1')
                     monaeating()
+                    num += 1
                     nbcroquettes = countcroquettes()
                     robotic.closing()
                     write_db('','','',nbcroquettes,'')
@@ -209,6 +209,7 @@ if __name__ == '__main__':
                     t_closing.pause()
                     robotic.opening()
                     monaeating()
+                    num += 1
                     write_db('openning','temppath','0','','1')
                     nbcroquettes = countcroquettes()
                     robotic.closing()
