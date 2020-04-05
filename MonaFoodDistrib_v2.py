@@ -9,6 +9,7 @@ import pymysql
 import configparser
 import robotic
 import os, os.path
+from prometheus_client import start_wsgi_server, Enum, Gauge
 
 # Init
 config = configparser.ConfigParser(os.environ)
@@ -22,6 +23,13 @@ nbcroquettes = 0
 
 num = len([n for n in os.listdir(path.get('imgpath')) if os.path.isfile(os.path.join(path.get('imgpath'), n))])
 num += 1
+
+# Exporter prom
+e = Enum('script_state', 'Description of enum',
+                        states=['starting', 'running', 'stopped'])
+
+g_monaeating = Gauge('monaeating', 'Description of gauge monateating')
+g_detectionstarting = Gauge('detectionstarting', 'Description of detection starting')
 
 # Pin in use
 pinlight = int(pin.get('pinlight'))
@@ -67,13 +75,13 @@ def setup():
         GPIO.setup(bpmanuel,GPIO.IN, pull_up_down=GPIO.PUD_UP)
         GPIO.setup(bpplateau,GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-
+@g_detectionstarting.track_inprogress()
 def detect():   
     loop = 0
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         image = frame.array
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        rects = detector.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=14, minSize=(60, 95))
+        rects = detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=15, minSize=(60, 95))
         # if detect
         print(rects)
         if len(rects):
@@ -99,6 +107,7 @@ def detect():
         if GPIO.input(capteur) == 1:
             return False
 
+@g_monaeating.track_inprogress()
 def monaeating():
     while GPIO.input(capteur) == 0:
         time.sleep(2)
@@ -174,6 +183,8 @@ def ir():
 
 if __name__ == '__main__':
     try:
+        start_wsgi_server(8000)
+        e.state('starting')
         setup()
         robotic.setup()
         ir()
@@ -181,7 +192,7 @@ if __name__ == '__main__':
         t_closing = robotic.closer()
         t_closing.start()
         t_closing.pause()
-
+        e.state('running')
         print('Ready!')
         while True:
             if GPIO.input(bpmanuel) == 0:
@@ -224,3 +235,4 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         GPIO.cleanup()
+        e.state('stopped')
